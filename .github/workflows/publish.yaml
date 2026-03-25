@@ -45,7 +45,7 @@ jobs:
       - uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81
         id: meta
         with:
-          images: ghcr.io/BassimBenarab/kinoxp
+          images: ghcr.io/bassimbenarab/kinoxp1
           tags: |
             type=sha,format=long
             type=raw,value=latest

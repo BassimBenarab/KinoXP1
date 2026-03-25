@@ -1,0 +1,35 @@
+name: CI – Compile & Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Hash-pinned: actions/checkout v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      # Hash-pinned: actions/setup-java v4.2.1
+      - uses: actions/setup-java@b36c23c0d998641eff861008f374ee103c25ac73
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # Cache Maven dependencies so they are not re-downloaded every run
+      # Hash-pinned: actions/cache v4.0.2
+      - uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Compile
+        run: ./mvnw compile -B
+
+      - name: Test
+        run: ./mvnw test -B

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinoXP – Reservér billetter</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #f0f0f0; }
+    header { background: #1a1a2e; padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { color: #e94560; font-size: 1.8rem; letter-spacing: 2px; }
+    header a { color: #aaa; text-decoration: none; font-size: 0.9rem; }
+    main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    h2 { color: #e94560; margin-bottom: 1.5rem; }
+    .showings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
+    .card { background: #1a1a2e; border-radius: 10px; padding: 1.2rem; border: 1px solid #2a2a4e; cursor: pointer; transition: border-color 0.2s; }
+    .card:hover { border-color: #e94560; }
+    .card h3 { color: #fff; margin-bottom: 0.4rem; }
+    .card .meta { color: #aaa; font-size: 0.85rem; line-height: 1.6; }
+    .badge { display: inline-block; background: #e94560; color: #fff; border-radius: 4px; font-size: 0.75rem; padding: 2px 6px; margin-left: 6px; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: flex-start; padding-top: 60px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1a1a2e; border-radius: 12px; padding: 2rem; width: 100%; max-width: 640px; max-height: 80vh; overflow-y: auto; }
+    .modal h3 { color: #e94560; margin-bottom: 1rem; }
+    .seat-grid { display: flex; flex-direction: column; gap: 4px; margin: 1rem 0; }
+    .seat-row { display: flex; gap: 4px; align-items: center; }
+    .row-label { width: 24px; text-align: right; font-size: 0.75rem; color: #888; margin-right: 4px; }
+    .seat { width: 28px; height: 28px; border-radius: 5px 5px 0 0; border: none; cursor: pointer; font-size: 0.7rem; font-weight: bold; background: #2e4a7a; color: #fff; transition: background 0.15s; }
+    .seat.taken { background: #555; cursor: not-allowed; color: #888; }
+    .seat.selected { background: #e94560; }
+    .seat.cowboy { background: #1a6b3c; }
+    .seat.cowboy.selected { background: #e94560; }
+    .seat.sofa { background: #7a4e1a; }
+    .seat.sofa.selected { background: #e94560; }
+    .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; font-size: 0.8rem; }
+    .legend span { display: flex; align-items: center; gap: 6px; }
+    .legend .dot { width: 14px; height: 14px; border-radius: 3px; }
+    .screen { background: #444; color: #ccc; text-align: center; padding: 6px; border-radius: 4px; margin-bottom: 8px; font-size: 0.8rem; letter-spacing: 4px; }
+    .form-group { margin-top: 1rem; }
+    .form-group label { display: block; margin-bottom: 4px; color: #aaa; font-size: 0.9rem; }
+    .form-group input { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #333; background: #0d0d0d; color: #fff; }
+    .btn { display: inline-block; margin-top: 1rem; padding: 0.7rem 1.5rem; background: #e94560; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+    .btn-cancel { background: #333; margin-left: 0.5rem; }
+    .price-info { margin-top: 0.8rem; background: #0d0d0d; border-radius: 8px; padding: 0.8rem; color: #ccc; font-size: 0.9rem; }
+    .msg { margin-top: 1rem; padding: 0.7rem; border-radius: 6px; font-size: 0.9rem; }
+    .msg.success { background: #1a6b3c; color: #fff; }
+    .msg.error { background: #6b1a1a; color: #fff; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🎬 KinoXP</h1>
+  <a href="/admin/index.html">Admin</a>
+</header>
+<main>
+  <h2>Kommende forestillinger</h2>
+  <div class="showings-grid" id="showings-grid">
+    <p style="color:#888">Indlæser forestillinger...</p>
+  </div>
+</main>
+
+<!-- Reservation modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Vælg sæder</h3>
+    <div class="screen">LÆRRED</div>
+    <div class="legend">
+      <span><div class="dot" style="background:#2e4a7a"></div> Normal</span>
+      <span><div class="dot" style="background:#1a6b3c"></div> Cowboy (billig)</span>
+      <span><div class="dot" style="background:#7a4e1a"></div> Sofa (dyr)</span>
+      <span><div class="dot" style="background:#e94560"></div> Valgt</span>
+      <span><div class="dot" style="background:#555"></div> Optaget</span>
+    </div>
+    <div class="seat-grid" id="seat-grid"></div>
+    <div class="price-info" id="price-info">Vælg sæder for at se pris</div>
+    <div class="form-group"><label>Navn</label><input type="text" id="customer-name" placeholder="Dit fulde navn"></div>
+    <div class="form-group"><label>Telefon</label><input type="tel" id="customer-phone" placeholder="Dit telefonnummer"></div>
+    <div id="modal-msg"></div>
+    <button class="btn" onclick="submitReservation()">Reservér</button>
+    <button class="btn btn-cancel" onclick="closeModal()">Annullér</button>
+  </div>
+</div>
+
+<script>
+  let currentShowing = null;
+  let takenSeats = new Set();
+  let selectedSeats = new Set();
+
+  async function loadShowings() {
+    const res = await fetch('/api/showings/active');
+    const showings = await res.json();
+    const grid = document.getElementById('showings-grid');
+    if (!showings.length) { grid.innerHTML = '<p style="color:#888">Ingen aktive forestillinger.</p>'; return; }
+    grid.innerHTML = showings.map(s => `
+      <div class="card" onclick="openModal(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+        <h3>${s.movie.title}${s.movie.is3D ? '<span class="badge">3D</span>' : ''}${s.movie.durationMinutes > 170 ? '<span class="badge">Lang film</span>' : ''}</h3>
+        <div class="meta">
+          🗓 ${new Date(s.startTime).toLocaleString('da-DK')}<br>
+          🎭 ${s.theater.name}<br>
+          🎬 ${s.movie.genre} · ${s.movie.ageLimit}+ år · ${s.movie.durationMinutes} min
+        </div>
+      </div>`).join('');
+  }
+
+  async function openModal(showing) {
+    currentShowing = showing;
+    selectedSeats = new Set();
+    document.getElementById('modal-title').textContent = showing.movie.title + ' – ' + new Date(showing.startTime).toLocaleString('da-DK');
+    document.getElementById('modal-msg').innerHTML = '';
+    document.getElementById('price-info').textContent = 'Vælg sæder for at se pris';
+
+    const res = await fetch(`/api/reservations/showing/${showing.id}/seats`);
+    takenSeats = new Set(await res.json());
+
+    renderSeats(showing.theater);
+    document.getElementById('modal').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+  function renderSeats(theater) {
+    const grid = document.getElementById('seat-grid');
+    grid.innerHTML = '';
+    for (let r = 1; r <= theater.rows; r++) {
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'seat-row';
+      const label = document.createElement('span');
+      label.className = 'row-label';
+      label.textContent = r;
+      rowDiv.appendChild(label);
+      for (let s = 1; s <= theater.seatsPerRow; s++) {
+        const key = `${r}-${s}`;
+        const btn = document.createElement('button');
+        btn.className = 'seat';
+        btn.textContent = s;
+        btn.dataset.key = key;
+        if (r <= theater.cowboyRowCount) btn.classList.add('cowboy');
+        const sofaStart = theater.rows - theater.sofaRowCount + 1;
+        if (theater.sofaRowCount > 0 && r >= sofaStart) btn.classList.add('sofa');
+        if (takenSeats.has(key)) { btn.classList.add('taken'); btn.disabled = true; }
+        else btn.addEventListener('click', () => toggleSeat(btn, key));
+        rowDiv.appendChild(btn);
+      }
+      grid.appendChild(rowDiv);
+    }
+  }
+
+  function toggleSeat(btn, key) {
+    if (selectedSeats.has(key)) { selectedSeats.delete(key); btn.classList.remove('selected'); }
+    else { selectedSeats.add(key); btn.classList.add('selected'); }
+    updatePriceInfo();
+  }
+
+  function updatePriceInfo() {
+    const n = selectedSeats.size;
+    if (n === 0) { document.getElementById('price-info').textContent = 'Vælg sæder for at se pris'; return; }
+    let note = '';
+    if (n <= 5) note = ' (+ reservationsgebyr for 1-5 billetter)';
+    if (n > 10) note = ' (7% grupperabat på grundpris)';
+    document.getElementById('price-info').textContent = `${n} sæde(r) valgt${note}. Prisen beregnes ved reservering.`;
+  }
+
+  async function submitReservation() {
+    const name = document.getElementById('customer-name').value.trim();
+    const phone = document.getElementById('customer-phone').value.trim();
+    const msgEl = document.getElementById('modal-msg');
+    if (!name || !phone) { msgEl.innerHTML = '<div class="msg error">Udfyld venligst navn og telefon.</div>'; return; }
+    if (selectedSeats.size === 0) { msgEl.innerHTML = '<div class="msg error">Vælg mindst ét sæde.</div>'; return; }
+    try {
+      const res = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showingId: currentShowing.id, customerName: name, customerPhone: phone, seats: [...selectedSeats] })
+      });
+      if (!res.ok) { const err = await res.text(); msgEl.innerHTML = `<div class="msg error">${err}</div>`; return; }
+      const data = await res.json();
+      msgEl.innerHTML = `<div class="msg success">✅ Reservation bekræftet! Pris: ${data.totalPrice} kr. Vi ses i biografen 🎬</div>`;
+      selectedSeats.forEach(k => { const b = document.querySelector(`[data-key="${k}"]`); if(b){b.classList.remove('selected');b.classList.add('taken');b.disabled=true;} });
+      selectedSeats = new Set();
+    } catch(e) { msgEl.innerHTML = '<div class="msg error">Noget gik galt. Prøv igen.</div>'; }
+  }
+
+  loadShowings();
+</script>
+</body>
+</html>

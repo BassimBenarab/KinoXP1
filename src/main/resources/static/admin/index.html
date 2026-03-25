@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>KinoXP Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #f0f0f0; display: flex; }
+    nav { width: 200px; min-height: 100vh; background: #1a1a2e; padding: 1.5rem 1rem; flex-shrink: 0; }
+    nav h2 { color: #e94560; margin-bottom: 1.5rem; font-size: 1.2rem; }
+    nav a { display: block; color: #ccc; text-decoration: none; padding: 0.6rem 0.5rem; border-radius: 6px; margin-bottom: 4px; }
+    nav a:hover, nav a.active { background: #2a2a4e; color: #fff; }
+    main { flex: 1; padding: 2rem; }
+    h1 { color: #e94560; margin-bottom: 1.5rem; }
+    .section { display: none; }
+    .section.active { display: block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th { background: #1a1a2e; color: #e94560; padding: 0.7rem; text-align: left; }
+    td { padding: 0.6rem; border-bottom: 1px solid #222; font-size: 0.9rem; }
+    tr:hover td { background: #1a1a2e; }
+    .btn { padding: 0.4rem 0.9rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .btn-red { background: #e94560; color: #fff; }
+    .btn-green { background: #1a6b3c; color: #fff; }
+    .btn-gray { background: #555; color: #fff; }
+    form { background: #1a1a2e; border-radius: 10px; padding: 1.5rem; max-width: 500px; margin-top: 1rem; }
+    form h3 { color: #e94560; margin-bottom: 1rem; }
+    .fg { margin-bottom: 0.8rem; }
+    .fg label { display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 3px; }
+    .fg input, .fg select { width: 100%; padding: 0.5rem; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; color: #fff; }
+    .fg input[type=checkbox] { width: auto; }
+  </style>
+</head>
+<body>
+<nav>
+  <h2>KinoXP Admin</h2>
+  <a href="#" class="active" onclick="showSection('showings')">Forestillinger</a>
+  <a href="#" onclick="showSection('movies')">Film</a>
+  <a href="#" onclick="showSection('reservations')">Reservationer</a>
+  <a href="/admin/logout" style="margin-top:auto; color:#e94560;">Log ud</a>
+</nav>
+<main>
+
+  <!-- SHOWINGS -->
+  <div class="section active" id="section-showings">
+    <h1>Forestillinger</h1>
+    <form id="showing-form">
+      <h3>Opret forestilling</h3>
+      <div class="fg"><label>Film</label><select id="s-movie"></select></div>
+      <div class="fg"><label>Sal</label><select id="s-theater"></select></div>
+      <div class="fg"><label>Dato & tid</label><input type="datetime-local" id="s-time"></div>
+      <button type="button" class="btn btn-green" onclick="createShowing()">Opret</button>
+    </form>
+    <table id="showings-table">
+      <thead><tr><th>Film</th><th>Sal</th><th>Tid</th><th>Aktiv</th><th>Handlinger</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- MOVIES -->
+  <div class="section" id="section-movies">
+    <h1>Film</h1>
+    <form id="movie-form">
+      <h3>Tilføj film</h3>
+      <div class="fg"><label>Titel</label><input id="m-title" placeholder="Filmens titel"></div>
+      <div class="fg"><label>Genre</label><input id="m-genre" placeholder="Action, Horror, ..."></div>
+      <div class="fg"><label>Aldersgrænse</label><input type="number" id="m-age" value="0"></div>
+      <div class="fg"><label>Varighed (min)</label><input type="number" id="m-duration" value="120"></div>
+      <div class="fg"><label>3D <input type="checkbox" id="m-3d"></label></div>
+      <div class="fg"><label>Biografdato</label><input type="date" id="m-date"></div>
+      <button type="button" class="btn btn-green" onclick="createMovie()">Tilføj</button>
+    </form>
+    <table id="movies-table">
+      <thead><tr><th>Titel</th><th>Genre</th><th>Alder</th><th>Varighed</th><th>3D</th><th>Slet</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- RESERVATIONS -->
+  <div class="section" id="section-reservations">
+    <h1>Reservationer</h1>
+    <table id="reservations-table">
+      <thead><tr><th>ID</th><th>Film</th><th>Tid</th><th>Kunde</th><th>Telefon</th><th>Sæder</th><th>Pris</th><th>Slet</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+</main>
+<script>
+  let movies = [], theaters = [];
+
+  function showSection(name) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById('section-' + name).classList.add('active');
+    event.target.classList.add('active');
+    if (name === 'showings') loadShowings();
+    if (name === 'movies') loadMovies();
+    if (name === 'reservations') loadReservations();
+  }
+
+  async function loadMovies() {
+    const res = await fetch('/api/movies');
+    movies = await res.json();
+    const tbody = document.querySelector('#movies-table tbody');
+    tbody.innerHTML = movies.map(m => `
+      <tr>
+        <td>${m.title}</td><td>${m.genre}</td><td>${m.ageLimit}+</td>
+        <td>${m.durationMinutes} min${m.durationMinutes > 170 ? ' ⚠️' : ''}</td>
+        <td>${m.is3D ? '✅' : '—'}</td>
+        <td><button class="btn btn-red" onclick="deleteMovie(${m.id})">Slet</button></td>
+      </tr>`).join('');
+    // also populate movie select
+    const sel = document.getElementById('s-movie');
+    sel.innerHTML = movies.map(m => `<option value="${m.id}">${m.title}</option>`).join('');
+  }
+
+  async function createMovie() {
+    const body = {
+      title: document.getElementById('m-title').value,
+      genre: document.getElementById('m-genre').value,
+      ageLimit: +document.getElementById('m-age').value,
+      durationMinutes: +document.getElementById('m-duration').value,
+      is3D: document.getElementById('m-3d').checked,
+      releaseDate: document.getElementById('m-date').value
+    };
+    await fetch('/api/movies', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    loadMovies();
+  }
+
+  async function deleteMovie(id) {
+    if (!confirm('Slet film?')) return;
+    await fetch(`/api/movies/${id}`, { method:'DELETE' });
+    loadMovies();
+  }
+
+  async function loadShowings() {
+    await loadMovies();
+    // load theaters inline
+    const tres = await fetch('/api/theaters');
+    theaters = await tres.json();
+    document.getElementById('s-theater').innerHTML = theaters.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+    const res = await fetch('/api/showings');
+    const showings = await res.json();
+    const tbody = document.querySelector('#showings-table tbody');
+    tbody.innerHTML = showings.map(s => `
+      <tr>
+        <td>${s.movie.title}</td>
+        <td>${s.theater.name}</td>
+        <td>${new Date(s.startTime).toLocaleString('da-DK')}</td>
+        <td>${s.active ? '✅' : '❌'}</td>
+        <td>
+          ${s.active ? `<button class="btn btn-gray" onclick="deactivateShowing(${s.id})">Tag af program</button>` : ''}
+          <button class="btn btn-red" onclick="deleteShowing(${s.id})">Slet</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  async function createShowing() {
+    const body = {
+      movie: { id: +document.getElementById('s-movie').value },
+      theater: { id: +document.getElementById('s-theater').value },
+      startTime: document.getElementById('s-time').value
+    };
+    await fetch('/api/showings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    loadShowings();
+  }
+
+  async function deactivateShowing(id) {
+    await fetch(`/api/showings/${id}/deactivate`, { method:'PATCH' });
+    loadShowings();
+  }
+
+  async function deleteShowing(id) {
+    if (!confirm('Slet forestilling?')) return;
+    await fetch(`/api/showings/${id}`, { method:'DELETE' });
+    loadShowings();
+  }
+
+  async function loadReservations() {
+    const res = await fetch('/api/reservations');
+    const reservations = await res.json();
+    const tbody = document.querySelector('#reservations-table tbody');
+    tbody.innerHTML = reservations.map(r => `
+      <tr>
+        <td>${r.id}</td>
+        <td>${r.showing.movie.title}</td>
+        <td>${new Date(r.showing.startTime).toLocaleString('da-DK')}</td>
+        <td>${r.customerName}</td>
+        <td>${r.customerPhone}</td>
+        <td>${r.seats.join(', ')}</td>
+        <td>${r.totalPrice} kr.</td>
+        <td><button class="btn btn-red" onclick="deleteReservation(${r.id})">Slet</button></td>
+      </tr>`).join('');
+  }
+
+  async function deleteReservation(id) {
+    if (!confirm('Slet reservation?')) return;
+    await fetch(`/api/reservations/${id}`, { method:'DELETE' });
+    loadReservations();
+  }
+
+  // Init
+  loadShowings();
+</script>
+</body>
+</html>

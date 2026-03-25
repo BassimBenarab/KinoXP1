@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>KinoXP Admin – Log ind</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .box { background: #1a1a2e; border-radius: 12px; padding: 2.5rem; width: 360px; }
+    h2 { color: #e94560; margin-bottom: 1.5rem; text-align: center; }
+    .fg { margin-bottom: 1rem; }
+    label { display: block; color: #aaa; margin-bottom: 4px; font-size: 0.9rem; }
+    input { width: 100%; padding: 0.6rem; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; color: #fff; }
+    button { width: 100%; padding: 0.7rem; background: #e94560; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; margin-top: 0.5rem; }
+    .error { color: #e94560; text-align: center; margin-top: 0.5rem; font-size: 0.9rem; }
+    a { color: #aaa; display: block; text-align: center; margin-top: 1rem; font-size: 0.85rem; text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="box">
+  <h2>🎬 KinoXP Admin</h2>
+  <form method="post" action="/admin/login">
+    <div class="fg"><label>Brugernavn</label><input type="text" name="username" required autofocus></div>
+    <div class="fg"><label>Adgangskode</label><input type="password" name="password" required></div>
+    <button type="submit">Log ind</button>
+    <p class="error" th:if="${param.error}">Forkert brugernavn eller adgangskode.</p>
+  </form>
+  <a href="/">← Tilbage til forsiden</a>
+</div>
+</body>
+</html>
